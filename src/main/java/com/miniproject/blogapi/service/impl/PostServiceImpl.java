@@ -2,6 +2,7 @@ package com.miniproject.blogapi.service.impl;
 
 import com.miniproject.blogapi.dto.PostRequest;
 import com.miniproject.blogapi.dto.PostResponse;
+import com.miniproject.blogapi.exception.ResourceNotFoundException;
 import com.miniproject.blogapi.model.Post;
 import com.miniproject.blogapi.model.PostStatus;
 import com.miniproject.blogapi.repository.PostRepository;
@@ -10,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -66,7 +66,7 @@ public class PostServiceImpl implements PostService {
 
     private Post findPostOrThrow(Long id) {
         return postRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Post not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + id));
     }
 
     private PostResponse toResponse(Post post) {
