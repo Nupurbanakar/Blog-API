@@ -25,3 +25,13 @@ docker run --name blog-api-postgres \
 **2. Run the app** in IntelliJ: open `BlogApiApplication.java` and click Run.
 
 The app starts on `http://localhost:8080`.
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /api/posts | Create a post |
+| GET | /api/posts | List all posts |
+| GET | /api/posts/{id} | Get one post |
+| PUT | /api/posts/{id} | Update a post |
+| DELETE | /api/posts/{id} | Delete a post |
