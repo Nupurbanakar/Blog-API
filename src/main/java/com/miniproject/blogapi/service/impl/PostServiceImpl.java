@@ -26,7 +26,8 @@ public class PostServiceImpl implements PostService {
         post.setAttachments(request.getAttachments());
         post.setRemarks(request.getRemarks());
         post.setStatus(PostStatus.DRAFT);
-        post.setCreatedBy("temp-user");
+        post.setCreatedBy(org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName());
 
         Post saved = postRepository.save(post);
         return toResponse(saved);
