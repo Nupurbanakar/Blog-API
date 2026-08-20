@@ -5,6 +5,7 @@ import com.miniproject.blogapi.dto.PostResponse;
 import com.miniproject.blogapi.exception.ResourceNotFoundException;
 import com.miniproject.blogapi.model.Post;
 import com.miniproject.blogapi.model.PostStatus;
+import com.miniproject.blogapi.model.Role;
 import com.miniproject.blogapi.repository.PostRepository;
 import com.miniproject.blogapi.service.PostService;
 import lombok.RequiredArgsConstructor;
