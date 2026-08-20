@@ -102,19 +102,11 @@ public class PostServiceImpl implements PostService {
         return toResponse(post);
     }
 
-    // --- helpers ---
-
     private Post findPostOrThrow(Long id) {
         return postRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + id));
     }
 
-    // Same as findPostOrThrow, but also hides drafts that don't belong to
-    // the current user (unless they're an admin) by throwing the SAME
-    // "not found" exception used for genuinely missing posts. This is
-    // deliberate: a 404 here reveals nothing about whether the post
-    // exists at all, whereas a 403 would confirm "something's there, you
-    // just can't see it" -- a small but real information leak.
     private Post findVisibleOrThrow(Long id) {
         Post post = findPostOrThrow(id);
         String username = currentUsername();
@@ -144,9 +136,10 @@ public class PostServiceImpl implements PostService {
 
     private boolean isAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String adminAuthority = "ROLE_" + Role.ADMIN.name();
         return auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch(role -> role.equals("ROLE_ADMIN"));
+                .anyMatch(role -> role.equals(adminAuthority));
     }
 
     private PostResponse toResponse(Post post) {

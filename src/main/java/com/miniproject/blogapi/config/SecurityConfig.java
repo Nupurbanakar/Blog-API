@@ -1,5 +1,6 @@
 package com.miniproject.blogapi.config;
 
+import com.miniproject.blogapi.model.Role;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -41,13 +42,13 @@ public class SecurityConfig {
         UserDetails admin = User.builder()
                 .username(adminUsername)
                 .password(encoder.encode(adminPassword))
-                .roles("ADMIN")
+                .roles(Role.ADMIN.name())
                 .build();
 
         UserDetails user = User.builder()
                 .username(userUsername)
                 .password(encoder.encode(userPassword))
-                .roles("USER")
+                .roles(Role.USER.name())
                 .build();
 
         return new InMemoryUserDetailsManager(admin, user);
