@@ -10,4 +10,6 @@ public interface PostService {
     PostResponse getPostById(Long id);
     PostResponse updatePost(Long id, PostRequest request);
     void deletePost(Long id);
+    PostResponse publishPost(Long id);
+    PostResponse rejectPost(Long id, String remarks);
 }

@@ -2,10 +2,12 @@ package com.miniproject.blogapi.controller;
 
 import com.miniproject.blogapi.dto.PostRequest;
 import com.miniproject.blogapi.dto.PostResponse;
+import com.miniproject.blogapi.dto.RejectRequest;
 import com.miniproject.blogapi.service.PostService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -41,5 +43,17 @@ public class PostController {
     public ResponseEntity<Void> deletePost(@PathVariable Long id) {
         postService.deletePost(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/publish")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PostResponse> publishPost(@PathVariable Long id) {
+        return ResponseEntity.ok(postService.publishPost(id));
+    }
+
+    @PatchMapping("/{id}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PostResponse> rejectPost(@PathVariable Long id, @Valid @RequestBody RejectRequest request) {
+        return ResponseEntity.ok(postService.rejectPost(id, request.getRemarks()));
     }
 }

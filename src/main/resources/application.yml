@@ -21,5 +21,7 @@ server:
 
 app:
   security:
-    username: admin
-    password: changeme
+    admin-username: admin
+    admin-password: adminpass
+    user-username: user
+    user-password: userpass

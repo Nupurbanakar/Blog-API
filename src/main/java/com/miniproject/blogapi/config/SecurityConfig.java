@@ -3,6 +3,7 @@ package com.miniproject.blogapi.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -15,13 +16,20 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
-    @Value("${app.security.username}")
-    private String appUsername;
+    @Value("${app.security.admin-username}")
+    private String adminUsername;
 
-    @Value("${app.security.password}")
-    private String appPassword;
+    @Value("${app.security.admin-password}")
+    private String adminPassword;
+
+    @Value("${app.security.user-username}")
+    private String userUsername;
+
+    @Value("${app.security.user-password}")
+    private String userPassword;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -30,12 +38,19 @@ public class SecurityConfig {
 
     @Bean
     public InMemoryUserDetailsManager userDetailsService(PasswordEncoder encoder) {
+        UserDetails admin = User.builder()
+                .username(adminUsername)
+                .password(encoder.encode(adminPassword))
+                .roles("ADMIN")
+                .build();
+
         UserDetails user = User.builder()
-                .username(appUsername)
-                .password(encoder.encode(appPassword))
+                .username(userUsername)
+                .password(encoder.encode(userPassword))
                 .roles("USER")
                 .build();
-        return new InMemoryUserDetailsManager(user);
+
+        return new InMemoryUserDetailsManager(admin, user);
     }
 
     @Bean
