@@ -17,6 +17,11 @@ server:
   port: 8080
 
 app:
+  jwt:
+    secret: "change-this-to-a-long-random-secret-key-at-least-256-bits-for-hs256"
+    access-token-expiration-ms: 3600000
+    refresh-token-expiration-ms: 604800000
+
   security:
     admin-username: admin
     admin-password: adminpass
