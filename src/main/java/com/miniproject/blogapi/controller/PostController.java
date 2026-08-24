@@ -5,22 +5,35 @@ import com.miniproject.blogapi.dto.PostResponse;
 import com.miniproject.blogapi.dto.RejectRequest;
 import com.miniproject.blogapi.service.PostService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
+@Validated
 public class PostController {
 
     private final PostService postService;
 
-    @PostMapping
-    public ResponseEntity<PostResponse> createPost(@Valid @RequestBody PostRequest request) {
-        PostResponse created = postService.createPost(request);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<PostResponse> createPost(
+            @RequestParam("text") @NotBlank(message = "Text must not be blank") String text,
+            @RequestParam(value = "remarks", required = false) String remarks,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files
+    ) {
+        PostRequest request = new PostRequest();
+        request.setText(text);
+        request.setRemarks(remarks);
+
+        PostResponse created = postService.createPost(request, files == null ? List.of() : files);
         return ResponseEntity.status(201).body(created);
     }
 

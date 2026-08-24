@@ -2,38 +2,64 @@ package com.miniproject.blogapi.service.impl;
 
 import com.miniproject.blogapi.dto.PostRequest;
 import com.miniproject.blogapi.dto.PostResponse;
+import com.miniproject.blogapi.exception.AttachmentUploadException;
 import com.miniproject.blogapi.exception.ResourceNotFoundException;
 import com.miniproject.blogapi.model.Post;
 import com.miniproject.blogapi.model.PostStatus;
-import com.miniproject.blogapi.model.Role;
 import com.miniproject.blogapi.repository.PostRepository;
+import com.miniproject.blogapi.service.CloudinaryService;
 import com.miniproject.blogapi.service.PostService;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
+    private final CloudinaryService cloudinaryService;
 
     @Override
     @Transactional
     public PostResponse createPost(PostRequest request) {
+        return createPost(request, List.of());
+    }
+
+    @Override
+    @Transactional
+    public PostResponse createPost(PostRequest request, List<MultipartFile> files) {
+        List<String> uploadedUrls = new ArrayList<>();
+        List<String> uploadErrors = new ArrayList<>();
+
+        // Graceful degradation: each file is attempted independently.
+        // One failing doesn't stop the others, and none of them stop the
+        // post itself from being created -- text is the only thing that's
+        // actually required for a valid post.
+        for (MultipartFile file : files) {
+            try {
+                String url = cloudinaryService.uploadFile(file);
+                uploadedUrls.add(url);
+            } catch (AttachmentUploadException e) {
+                uploadErrors.add(file.getOriginalFilename() + ": " + e.getMessage());
+            }
+        }
+
         Post post = new Post();
         post.setText(request.getText());
-        post.setAttachments(request.getAttachments());
+        post.setAttachments(uploadedUrls);
         post.setRemarks(request.getRemarks());
         post.setStatus(PostStatus.DRAFT);
         post.setCreatedBy(currentUsername());
 
         Post saved = postRepository.save(post);
-        return toResponse(saved);
+        return toResponse(saved, uploadErrors.isEmpty() ? null : uploadErrors);
     }
 
     @Override
@@ -46,7 +72,7 @@ public class PostServiceImpl implements PostService {
                 .filter(post -> admin
                         || post.getStatus() == PostStatus.PUBLISHED
                         || post.getCreatedBy().equals(username))
-                .map(this::toResponse)
+                .map(post -> toResponse(post, null))
                 .toList();
     }
 
@@ -54,7 +80,7 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public PostResponse getPostById(Long id) {
         Post post = findVisibleOrThrow(id);
-        return toResponse(post);
+        return toResponse(post, null);
     }
 
     @Override
@@ -70,7 +96,7 @@ public class PostServiceImpl implements PostService {
         post.setText(request.getText());
         post.setAttachments(request.getAttachments());
         post.setRemarks(request.getRemarks());
-        return toResponse(post);
+        return toResponse(post, null);
     }
 
     @Override
@@ -91,7 +117,7 @@ public class PostServiceImpl implements PostService {
     public PostResponse publishPost(Long id) {
         Post post = findPostOrThrow(id);
         post.setStatus(PostStatus.PUBLISHED);
-        return toResponse(post);
+        return toResponse(post, null);
     }
 
     @Override
@@ -100,7 +126,7 @@ public class PostServiceImpl implements PostService {
         Post post = findPostOrThrow(id);
         post.setStatus(PostStatus.DRAFT);
         post.setRemarks(remarks);
-        return toResponse(post);
+        return toResponse(post, null);
     }
 
     private Post findPostOrThrow(Long id) {
@@ -137,13 +163,12 @@ public class PostServiceImpl implements PostService {
 
     private boolean isAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String adminAuthority = "ROLE_" + Role.ADMIN.name();
         return auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch(role -> role.equals(adminAuthority));
+                .anyMatch(role -> role.equals("ROLE_ADMIN"));
     }
 
-    private PostResponse toResponse(Post post) {
+    private PostResponse toResponse(Post post, List<String> uploadErrors) {
         return PostResponse.builder()
                 .id(post.getId())
                 .text(post.getText())
@@ -153,6 +178,7 @@ public class PostServiceImpl implements PostService {
                 .updatedAt(post.getUpdatedAt())
                 .createdBy(post.getCreatedBy())
                 .remarks(post.getRemarks())
+                .attachmentUploadErrors(uploadErrors)
                 .build();
     }
 }
