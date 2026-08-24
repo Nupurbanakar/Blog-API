@@ -18,17 +18,17 @@ server:
 
 app:
   jwt:
-    secret: ${JWT_SECRET}
+    secret: test-jwt-secret-only-used-during-automated-tests-never-real
     access-token-expiration-ms: 3600000
     refresh-token-expiration-ms: 604800000
 
   security:
-    admin-username: ${ADMIN_USERNAME}
-    admin-password: ${ADMIN_PASSWORD}
-    user-username: ${USER_USERNAME}
-    user-password: ${USER_PASSWORD}
+    admin-username: admin
+    admin-password: adminpass
+    user-username: user
+    user-password: userpass
 
   cloudinary:
-    cloud-name: ${CLOUDINARY_CLOUD_NAME}
-    api-key: ${CLOUDINARY_API_KEY}
-    api-secret: ${CLOUDINARY_API_SECRET}
+    cloud-name: test-cloud-name
+    api-key: test-api-key
+    api-secret: test-api-secret

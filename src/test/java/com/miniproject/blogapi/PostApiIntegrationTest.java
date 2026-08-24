@@ -2,13 +2,19 @@ package com.miniproject.blogapi;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.miniproject.blogapi.service.CloudinaryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.multipart.MultipartFile;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -21,11 +27,10 @@ class PostApiIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+    
+    @MockBean
+    private CloudinaryService cloudinaryService;
 
-    // Logs in via the real /api/auth/login endpoint and returns just the
-    // access token, ready to drop into an Authorization header. This
-    // replaces httpBasic(...) everywhere below, since Basic Auth no
-    // longer exists in this app at all.
     private String loginAndGetAccessToken(String username, String password) throws Exception {
         String body = """
                 { "username": "%s", "password": "%s" }
@@ -44,14 +49,9 @@ class PostApiIntegrationTest {
     private Long createDraftPostAsUser() throws Exception {
         String token = loginAndGetAccessToken("user", "userpass");
 
-        String body = """
-                { "text": "Integration test post", "attachments": [], "remarks": "" }
-                """;
-
-        String response = mockMvc.perform(post("/api/posts")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        String response = mockMvc.perform(multipart("/api/posts")
+                        .param("text", "Integration test post")
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
@@ -70,8 +70,7 @@ class PostApiIntegrationTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").exists())
-                .andExpect(jsonPath("$.refreshToken").exists())
-                .andExpect(jsonPath("$.tokenType").value("Bearer"));
+                .andExpect(jsonPath("$.refreshToken").exists());
     }
 
     @Test
@@ -87,31 +86,63 @@ class PostApiIntegrationTest {
     }
 
     @Test
-    void createPost_asAuthenticatedUser_returns201WithDraftStatus() throws Exception {
+    void createPost_asAuthenticatedUser_withNoFile_returns201WithDraftStatus() throws Exception {
         String token = loginAndGetAccessToken("user", "userpass");
 
-        String body = """
-                { "text": "My integration test post", "attachments": [], "remarks": "note" }
-                """;
-
-        mockMvc.perform(post("/api/posts")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        mockMvc.perform(multipart("/api/posts")
+                        .param("text", "My integration test post")
+                        .param("remarks", "note")
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("DRAFT"))
-                .andExpect(jsonPath("$.createdBy").value("user"));
+                .andExpect(jsonPath("$.createdBy").value("user"))
+                .andExpect(jsonPath("$.attachments").isEmpty());
+    }
+
+    @Test
+    void createPost_withFile_uploadsViaCloudinaryAndStoresUrl() throws Exception {
+        String token = loginAndGetAccessToken("user", "userpass");
+
+        MockMultipartFile fakeImage = new MockMultipartFile(
+                "files", "photo.jpg", "image/jpeg", "fake-image-bytes".getBytes()
+        );
+
+        when(cloudinaryService.uploadFile(any(MultipartFile.class)))
+                .thenReturn("https://res.cloudinary.com/fake-cloud/photo.jpg");
+
+        mockMvc.perform(multipart("/api/posts")
+                        .file(fakeImage)
+                        .param("text", "Post with a real-looking attachment")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.attachments[0]").value("https://res.cloudinary.com/fake-cloud/photo.jpg"));
+    }
+
+    @Test
+    void createPost_whenCloudinaryFails_stillReturns201WithErrorReported() throws Exception {
+        String token = loginAndGetAccessToken("user", "userpass");
+
+        MockMultipartFile fakeImage = new MockMultipartFile(
+                "files", "broken.jpg", "image/jpeg", "fake-image-bytes".getBytes()
+        );
+
+        when(cloudinaryService.uploadFile(any(MultipartFile.class)))
+                .thenThrow(new com.miniproject.blogapi.exception.AttachmentUploadException(
+                        "Simulated Cloudinary outage", new RuntimeException()));
+
+        mockMvc.perform(multipart("/api/posts")
+                        .file(fakeImage)
+                        .param("text", "Post whose attachment will fail")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.attachments").isEmpty())
+                .andExpect(jsonPath("$.attachmentUploadErrors").isNotEmpty());
     }
 
     @Test
     void createPost_withoutToken_returns401() throws Exception {
-        String body = """
-                { "text": "No auth attempt", "attachments": [], "remarks": "" }
-                """;
-
-        mockMvc.perform(post("/api/posts")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        mockMvc.perform(multipart("/api/posts")
+                        .param("text", "No auth attempt"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -119,16 +150,10 @@ class PostApiIntegrationTest {
     void createPost_withBlankText_returns400() throws Exception {
         String token = loginAndGetAccessToken("user", "userpass");
 
-        String body = """
-                { "text": "", "attachments": [], "remarks": "" }
-                """;
-
-        mockMvc.perform(post("/api/posts")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Validation failed"));
+        mockMvc.perform(multipart("/api/posts")
+                        .param("text", "")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

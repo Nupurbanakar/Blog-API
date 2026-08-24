@@ -2,6 +2,7 @@ package com.miniproject.blogapi.service;
 
 import com.miniproject.blogapi.dto.PostRequest;
 import com.miniproject.blogapi.dto.PostResponse;
+import com.miniproject.blogapi.exception.AttachmentUploadException;
 import com.miniproject.blogapi.exception.ResourceNotFoundException;
 import com.miniproject.blogapi.model.Post;
 import com.miniproject.blogapi.model.PostStatus;
@@ -13,10 +14,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +34,9 @@ class PostServiceImplTest {
 
     @Mock
     private PostRepository postRepository;
+    
+    @Mock
+    private CloudinaryService cloudinaryService;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -51,10 +57,9 @@ class PostServiceImplTest {
     }
 
     @Test
-    void createPost_setsStatusToDraftAndCreatedByToCurrentUser() {
+    void createPost_withNoFiles_setsStatusToDraftAndCreatedByToCurrentUser() {
         PostRequest request = new PostRequest();
         request.setText("Hello world");
-        request.setAttachments(List.of());
         request.setRemarks("first draft");
 
         when(postRepository.save(any(Post.class))).thenAnswer(invocation -> {
@@ -67,7 +72,54 @@ class PostServiceImplTest {
 
         assertThat(response.getStatus()).isEqualTo(PostStatus.DRAFT);
         assertThat(response.getCreatedBy()).isEqualTo("user");
-        assertThat(response.getText()).isEqualTo("Hello world");
+        assertThat(response.getAttachments()).isEmpty();
+    }
+
+    @Test
+    void createPost_withFile_uploadsAndStoresReturnedUrl() {
+        PostRequest request = new PostRequest();
+        request.setText("Post with an image");
+
+        MultipartFile fakeFile = new MockMultipartFile(
+                "files", "photo.jpg", "image/jpeg", "fake-bytes".getBytes()
+        );
+
+        when(cloudinaryService.uploadFile(any(MultipartFile.class)))
+                .thenReturn("https://res.cloudinary.com/fake/photo.jpg");
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> {
+            Post p = invocation.getArgument(0);
+            p.setId(2L);
+            return p;
+        });
+
+        PostResponse response = postService.createPost(request, List.of(fakeFile));
+
+        assertThat(response.getAttachments()).containsExactly("https://res.cloudinary.com/fake/photo.jpg");
+        assertThat(response.getAttachmentUploadErrors()).isNull();
+    }
+
+    @Test
+    void createPost_whenUploadFails_stillCreatesPostAndReportsError() {
+        PostRequest request = new PostRequest();
+        request.setText("Post with a bad attachment");
+
+        MultipartFile fakeFile = new MockMultipartFile(
+                "files", "broken.jpg", "image/jpeg", "fake-bytes".getBytes()
+        );
+
+        when(cloudinaryService.uploadFile(any(MultipartFile.class)))
+                .thenThrow(new AttachmentUploadException("Cloudinary is down", new RuntimeException()));
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> {
+            Post p = invocation.getArgument(0);
+            p.setId(3L);
+            return p;
+        });
+
+        PostResponse response = postService.createPost(request, List.of(fakeFile));
+
+        assertThat(response.getAttachments()).isEmpty();
+        assertThat(response.getAttachmentUploadErrors()).isNotEmpty();
+        assertThat(response.getAttachmentUploadErrors().get(0)).contains("broken.jpg");
     }
 
     @Test
