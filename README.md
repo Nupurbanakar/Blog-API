@@ -39,14 +39,14 @@ docker run --name blog-api-postgres \
 
 The app will not start without these set. In IntelliJ: **Run → Edit Configurations → Environment Variables**.
 
-JWT_SECRET= <random-string>
-ADMIN_USERNAME= admin
-ADMIN_PASSWORD= <your-choice>
-USER_USERNAME= user
-USER_PASSWORD= <your-choice>
-CLOUDINARY_CLOUD_NAME= <from-your-Cloudinary-dashboard>
-CLOUDINARY_API_KEY= <from-your-Cloudinary-dashboard>
-CLOUDINARY_API_SECRET= <from-your-Cloudinary-dashboard>
+JWT_SECRET, 
+ADMIN_USERNAME, 
+ADMIN_PASSWORD, 
+USER_USERNAME,
+USER_PASSWORD,
+CLOUDINARY_CLOUD_NAME,
+CLOUDINARY_API_KEY,
+CLOUDINARY_API_SECRET.
 
 **2. Set the environment variables** above in your Run Configuration.
 
