@@ -1,0 +1,39 @@
+spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 25MB
+
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+app:
+  jwt:
+    secret: test-jwt-secret-only-used-during-automated-tests-never-real
+    access-token-expiration-ms: 3600000
+    refresh-token-expiration-ms: 604800000
+
+  security:
+    admin-username: admin
+    admin-password: adminpass
+    user-username: user
+    user-password: userpass
+
+  cloudinary:
+    cloud-name: test-cloud-name
+    api-key: test-api-key
+    api-secret: test-api-secret
