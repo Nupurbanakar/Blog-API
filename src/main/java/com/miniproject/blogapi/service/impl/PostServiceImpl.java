@@ -2,8 +2,10 @@ package com.miniproject.blogapi.service.impl;
 
 import com.miniproject.blogapi.dto.PostRequest;
 import com.miniproject.blogapi.dto.PostResponse;
+import com.miniproject.blogapi.event.PostCreatedEvent;
 import com.miniproject.blogapi.exception.AttachmentUploadException;
 import com.miniproject.blogapi.exception.ResourceNotFoundException;
+import com.miniproject.blogapi.kafka.PostEventProducer;
 import com.miniproject.blogapi.model.Post;
 import com.miniproject.blogapi.model.PostStatus;
 import com.miniproject.blogapi.repository.PostRepository;
@@ -25,6 +27,7 @@ public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
     private final CloudinaryService cloudinaryService;
+    private final PostEventProducer postEventProducer;
 
     @Override
     @Transactional
@@ -38,10 +41,6 @@ public class PostServiceImpl implements PostService {
         List<String> uploadedUrls = new ArrayList<>();
         List<String> uploadErrors = new ArrayList<>();
 
-        // Graceful degradation: each file is attempted independently.
-        // One failing doesn't stop the others, and none of them stop the
-        // post itself from being created -- text is the only thing that's
-        // actually required for a valid post.
         for (MultipartFile file : files) {
             try {
                 String url = cloudinaryService.uploadFile(file);
@@ -59,6 +58,7 @@ public class PostServiceImpl implements PostService {
         post.setCreatedBy(currentUsername());
 
         Post saved = postRepository.save(post);
+        postEventProducer.publishPostCreated(new PostCreatedEvent(saved.getId(), saved.getText()));
         return toResponse(saved, uploadErrors.isEmpty() ? null : uploadErrors);
     }
 

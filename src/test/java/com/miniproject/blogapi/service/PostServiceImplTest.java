@@ -4,6 +4,7 @@ import com.miniproject.blogapi.dto.PostRequest;
 import com.miniproject.blogapi.dto.PostResponse;
 import com.miniproject.blogapi.exception.AttachmentUploadException;
 import com.miniproject.blogapi.exception.ResourceNotFoundException;
+import com.miniproject.blogapi.kafka.PostEventProducer;
 import com.miniproject.blogapi.model.Post;
 import com.miniproject.blogapi.model.PostStatus;
 import com.miniproject.blogapi.repository.PostRepository;
@@ -37,6 +38,9 @@ class PostServiceImplTest {
     
     @Mock
     private CloudinaryService cloudinaryService;
+
+    @Mock
+    private PostEventProducer postEventProducer;
 
     @InjectMocks
     private PostServiceImpl postService;
