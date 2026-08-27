@@ -178,6 +178,8 @@ public class PostServiceImpl implements PostService {
                 .updatedAt(post.getUpdatedAt())
                 .createdBy(post.getCreatedBy())
                 .remarks(post.getRemarks())
+                .moderationStatus(post.getModerationStatus())
+                .moderationRemarks(post.getModerationRemarks())
                 .attachmentUploadErrors(uploadErrors)
                 .build();
     }

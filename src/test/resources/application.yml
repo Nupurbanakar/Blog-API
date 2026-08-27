@@ -18,6 +18,9 @@ spring:
       hibernate:
         format_sql: true
 
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+
 server:
   port: 8080
 
@@ -37,3 +40,6 @@ app:
     cloud-name: test-cloud-name
     api-key: test-api-key
     api-secret: test-api-secret
+
+  huggingface:
+    api-key: test-hf-key

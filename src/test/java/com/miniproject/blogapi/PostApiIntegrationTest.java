@@ -2,17 +2,25 @@ package com.miniproject.blogapi;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.miniproject.blogapi.model.ModerationStatus;
+import com.miniproject.blogapi.repository.PostRepository;
 import com.miniproject.blogapi.service.CloudinaryService;
+import com.miniproject.blogapi.service.ModerationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Duration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -20,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@EmbeddedKafka(partitions = 1, topics = "post-created-topic")
 class PostApiIntegrationTest {
 
     @Autowired
@@ -27,9 +36,15 @@ class PostApiIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
-    
+
+    @Autowired
+    private PostRepository postRepository;
+
     @MockBean
     private CloudinaryService cloudinaryService;
+
+    @MockBean
+    private ModerationService moderationService;
 
     private String loginAndGetAccessToken(String username, String password) throws Exception {
         String body = """
@@ -42,8 +57,7 @@ class PostApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        JsonNode json = objectMapper.readTree(response);
-        return json.get("accessToken").asText();
+        return objectMapper.readTree(response).get("accessToken").asText();
     }
 
     private Long createDraftPostAsUser() throws Exception {
@@ -55,8 +69,7 @@ class PostApiIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        JsonNode json = objectMapper.readTree(response);
-        return json.get("id").asLong();
+        return objectMapper.readTree(response).get("id").asLong();
     }
 
     @Test
@@ -86,7 +99,7 @@ class PostApiIntegrationTest {
     }
 
     @Test
-    void createPost_asAuthenticatedUser_withNoFile_returns201WithDraftStatus() throws Exception {
+    void createPost_asAuthenticatedUser_withNoFile_returns201WithDraftStatusAndPendingModeration() throws Exception {
         String token = loginAndGetAccessToken("user", "userpass");
 
         mockMvc.perform(multipart("/api/posts")
@@ -96,7 +109,7 @@ class PostApiIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.createdBy").value("user"))
-                .andExpect(jsonPath("$.attachments").isEmpty());
+                .andExpect(jsonPath("$.moderationStatus").value("PENDING"));
     }
 
     @Test
@@ -230,5 +243,19 @@ class PostApiIntegrationTest {
                         .content(refreshBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").exists());
+    }
+
+    @Test
+    void postCreation_triggersAsyncModeration_andEventuallyUpdatesStatus() throws Exception {
+        when(moderationService.moderate(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new ModerationService.ModerationResult(true, "toxic"));
+
+        Long id = createDraftPostAsUser();
+
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            var post = postRepository.findById(id).orElseThrow();
+            assertThat(post.getModerationStatus()).isEqualTo(ModerationStatus.REJECTED);
+            assertThat(post.getModerationRemarks()).contains("toxic");
+        });
     }
 }

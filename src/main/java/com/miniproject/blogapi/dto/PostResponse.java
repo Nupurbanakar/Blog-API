@@ -1,5 +1,6 @@
 package com.miniproject.blogapi.dto;
 
+import com.miniproject.blogapi.model.ModerationStatus;
 import com.miniproject.blogapi.model.PostStatus;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,9 +22,7 @@ public class PostResponse {
     private LocalDateTime updatedAt;
     private String createdBy;
     private String remarks;
-
-    // Populated only when one or more attachments failed to upload.
-    // Empty/null in the normal case -- clients should check for its
-    // presence rather than assuming it's always there.
+    private ModerationStatus moderationStatus;
+    private String moderationRemarks;
     private List<String> attachmentUploadErrors;
 }

@@ -28,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,7 +36,7 @@ class PostServiceImplTest {
 
     @Mock
     private PostRepository postRepository;
-    
+
     @Mock
     private CloudinaryService cloudinaryService;
 
@@ -77,6 +78,7 @@ class PostServiceImplTest {
         assertThat(response.getStatus()).isEqualTo(PostStatus.DRAFT);
         assertThat(response.getCreatedBy()).isEqualTo("user");
         assertThat(response.getAttachments()).isEmpty();
+        verify(postEventProducer).publishPostCreated(any());
     }
 
     @Test

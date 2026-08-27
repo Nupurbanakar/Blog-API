@@ -45,6 +45,12 @@ public class Post {
     @Column(columnDefinition = "TEXT")
     private String remarks;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ModerationStatus moderationStatus = ModerationStatus.PENDING;
+
+    private String moderationRemarks;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
