@@ -1,6 +1,6 @@
 # Blog API
 
-A Java + Spring Boot mini-project: building service for blog posts CRUD.
+A Java + Spring Boot mini-project, built step-by-step to learn the framework from the ground up — CRUD APIs, authentication/authorization, testing, CI, third-party integrations, and asynchronous event processing.
 
 ## Tech Stack
 - Java 17
@@ -11,7 +11,8 @@ A Java + Spring Boot mini-project: building service for blog posts CRUD.
 - Lombok
 - JWT (`jjwt`) — access + refresh tokens
 - Cloudinary — attachment storage
-- JUnit 5 + Mockito + AssertJ + MockMvc — testing
+- Hugging Face Inference API (`unitary/toxic-bert`) — automated content moderation
+- JUnit 5 + Mockito + AssertJ + MockMvc + `@EmbeddedKafka` + Awaitility — testing
 - GitHub Actions — CI
 
 ## Local Setup
@@ -23,7 +24,8 @@ A Java + Spring Boot mini-project: building service for blog posts CRUD.
 - Docker Desktop (for local Postgres)
 - Postman
 - A free [Cloudinary](https://cloudinary.com/users/register/free) account
-
+- A free [Hugging Face](https://huggingface.co) account + access token
+  
 **1. Start PostgreSQL:**
 ```bash
 docker run --name blog-api-postgres \
@@ -46,7 +48,15 @@ USER_USERNAME,
 USER_PASSWORD,
 CLOUDINARY_CLOUD_NAME,
 CLOUDINARY_API_KEY,
-CLOUDINARY_API_SECRET.
+CLOUDINARY_API_SECRET, 
+HUGGINGFACE_API_KEY.
+
+**Set the environment variables** above in your Run Configuration.
+
+**1. Start Postgres + Kafka together:**
+```bash
+docker compose up -d
+```
 
 **2. Set the environment variables** above in your Run Configuration.
 
@@ -76,7 +86,7 @@ Two roles:
 
 ## Attachments
 
-Create Post accepts file uploads directly (`multipart/form-data`), uploaded to Cloudinary. If an attachment fails to upload, the post is still created — check the `attachmentUploadErrors` field in the response for details on any that failed.
+Create Post accepts file uploads directly (`multipart/form-data`), uploaded to Cloudinary. Allowed types: JPEG, PNG, GIF, WEBP, PDF. Max 5MB per file, 25MB per request. If an attachment fails to upload (or is rejected for type/size), the post is still created — check `attachmentUploadErrors` in the response.
 
 ## CI
 
